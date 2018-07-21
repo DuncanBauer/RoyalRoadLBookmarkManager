@@ -1,0 +1,19 @@
+main
+	open db connection
+	if(db is empty)
+		grab all stories/chapters (GrabData)
+		
+	while(!timeout)
+		while(!found)
+			grab post date of last posted chapter for last story on bookmark page
+		
+			if the date is more recent than the last update check
+				check the last story on the next bookmark page
+			else 
+				grab the date
+				found = true
+				
+		for(number of stories updated)
+			search for chapters with a date later than the oldest updated chapter
+			add them to the story
+			
