@@ -77,11 +77,6 @@ def fetchall(connection):
     stories = []
     retry = True
     sesh = None
-
-    username = input("Enter RoyalRoadL username: ")
-    password = input("Enter RoyalRoadL password: ")
-    payload = {'username': username,
-               'password': password}
     headers = {'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
                'accept-encoding': 'gzip',
                'accept-language': 'en-US,en;q=0.9',
@@ -95,10 +90,20 @@ def fetchall(connection):
 
     session = requests.Session()
     with session as s:
+        retry = True
+        while retry:
+            username = input("Enter RoyalRoadL username: ")
+            password = input("Enter RoyalRoadL password: ")
+            payload = {'username': username,
+                       'password': password}
+            print("Attempting to log in to RoyalRoadL...")
+            print()
+            p = s.post(url, data=payload, headers=headers)
+            if p.url.endswith("loginsuccess"):
+                retry = False
+            else:
+                print("Invalid login. Please try again")
 
-        print("Attempting to log in to RoyalRoadL...")
-        p = s.post(url, data=payload, headers=headers)
-        print("P: ", p)
         print("Parsing data...")
         p = s.get(url2 + '/my/bookmarks')
 
@@ -278,7 +283,7 @@ switch = {
 }
 
 
-def main():
+if __name__ == "__main__":
     retry = True
     connection = None
     while retry:
@@ -325,8 +330,3 @@ def main():
     #last_check = grabData.fetchlatest(connection, payload, url, url2, suffix, last_check)
 
     connection.close()
-    return 0
-
-
-# Begin program
-main()
