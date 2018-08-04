@@ -38,17 +38,20 @@ def db_connect():
     db_ip = input("Enter database ip: ")
     username = input("Enter database username: ")
     password = input("Enter database password: ")
+    ticks = time.time()
     print()
     print("Connecting to database...")
     connection.connect(db_ip, username, password, 'royalroadl', 'utf8')
     print("Connection to database established!")
+
+    print("Time spend connecting to db: ", time.time() - ticks)
     return connection
 
 def empty_db(connection):
     try:
         connection.query(("""DROP TABLE IF EXISTS bookmarks""", ())) # To be removed after updating script is complete
         connection.query(("""DROP TABLE IF EXISTS chapters""", ()))  # To be removed after updating script is complete
-        #
+
         connection.query(("""CREATE TABLE IF NOT EXISTS `bookmarks` (
                  `title` varchar(200) NOT NULL,
                  `author` varchar(199) DEFAULT NULL,
@@ -62,7 +65,7 @@ def empty_db(connection):
                  `fictionLink` varchar(199) NOT NULL,
                  `chapterTitle` varchar(199) NOT NULL,
                  `chapterLink` varchar(199) NOT NULL,
-                 `postTime` double NOT NULL,
+                 `postTime` varchar(20) NOT NULL,
                  PRIMARY KEY (`chapterLink`)
                  )ENGINE=InnoDB DEFAULT CHARSET=utf8""", ()))
         c = connection.query(("""SELECT count(*) as tot FROM bookmarks""", ()))
@@ -74,7 +77,6 @@ def empty_db(connection):
     return 1
 
 def fetchall(connection):
-    stories = []
     retry = True
     sesh = None
     headers = {'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
@@ -113,6 +115,7 @@ def fetchall(connection):
         # Search soup for all links to other bookmark pages
         bookmark_number = RoyalRoadLSoupParser.grab_bookmark_number(soup)
 
+        ticks = time.time()
         # Begin traversing bookmark pages to read story titles, links, and authors
         for i in range(1, bookmark_number, 1):
             # Load new page to get story titles, links, and authors
@@ -122,48 +125,54 @@ def fetchall(connection):
 
             # Search soup for all story titles, authors, and links
             r = RoyalRoadLSoupParser.grab_story_titles_authors_links(soup)
-            for i in range(0, len(r) - 1, 2):
-                newStory = Story()
-                newStory.setTitle(r[i].text)
-                newStory.setStoryLink(r[i]['href'])
-                newStory.setAuthor(r[i + 1].text)
-                newStory.setAuthorLink(r[i + 1]['href'])
+
+            stories = [Story(r[i].text, r[i]['href'], r[i + 1].text, r[i + 1]['href']) for a in r]
+            #stories = []
+            #for i in range(0, len(r) - 1, 2):
+            #    newStory = Story()
+            #    newStory.setTitle(r[i].text)
+            #    newStory.setStoryLink(r[i]['href'])
+            #    newStory.setAuthor(r[i + 1].text)
+            #    newStory.setAuthorLink(r[i + 1]['href'])
 
                 # Add story to the list
-                stories.append(newStory)
+            #    stories.append(newStory)
 
-        try:
-            # Begin traversing bookmarked stories to read chapter names, links, and upload times
-            for i in range(0, len(stories) - 1, 1):
-                # Grab link to new story
-                story_link = stories[i].getStoryLink()
-                # Load new page to get chapter titles, links, and upload times
-                p = s.get(url2 + story_link)
-                # Create soup to parse html
-                soup = BeautifulSoup(str(p.text), 'lxml')
+        print("Time reading bookmark pages: ", time.time() - ticks)
+        ticks = time.time()
 
-                counter = 0
-                to_skip = 0
-                times = soup.find_all("time", unixtime=True, format='ago')
-                links = [a for a in soup.find_all("a", href=True) if a['href'].startswith(stories[i].getStoryLink()) \
-                    and not a['href'].startswith(stories[i].getStoryLink() + '?reviews=')]
+        # Begin traversing bookmarked stories to read chapter names, links, and upload times
+        for i in range(0, len(stories) - 1, 1):
+            # Grab link to new story
+            story_link = stories[i].getStoryLink()
+            # Load new page to get chapter titles, links, and upload times
+            p = s.get(url2 + story_link)
+            # Create soup to parse html
+            soup = BeautifulSoup(str(p.text), 'lxml')
 
-                for a in links:
-                    # Skips first valid link as its duplicated
-                    if to_skip == 0:
-                        to_skip = 1
-                    elif to_skip == 1:
-                        # Create new chapter
-                        newChapter = Chapter()
-                        newChapter.setStoryLink(story_link)
-                        newChapter.setChapterLink(a['href'])
-                        newChapter.setChapterName((a.get_text()).strip())
-                        newChapter.setChapterTime(times[counter]['unixtime'])
-                        stories[i].addChapter(newChapter)
-                        counter += 1
-        except Exception as e:
-            print(e)
-            exit()
+            counter = 0
+            to_skip = 0
+            times = soup.find_all("time", format='agoshort')
+            links = [a for a in soup.find_all("a", href=True) if a['href'].startswith(stories[i].getStoryLink()) \
+                and not a['href'].startswith(stories[i].getStoryLink() + '?reviews=')]
+
+            for a in links:
+                # Skips first valid link as its duplicated
+                if to_skip == 0:
+                    to_skip = 1
+                elif to_skip == 1:
+                    # Create new chapter
+                    newChapter = Chapter()
+                    newChapter.setStoryLink(story_link)
+                    newChapter.setChapterLink(a['href'])
+                    newChapter.setChapterName((a.get_text()).strip())
+                    newChapter.setChapterTime(times[counter].text)
+                    stories[i].addChapter(newChapter)
+                    counter += 1
+
+        print("Time reading story chapters: ", time.time() - ticks)
+        ticks = time.time()
+        exit()
 
         try:
             # STORE DATA IN MYSQL DB

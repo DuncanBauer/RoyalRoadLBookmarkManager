@@ -47,23 +47,23 @@ class Chapter:
 
 class Story:
 
-    def __init__(self):
-        self.chapter_count = 0
-        self.title = None
-        self.author = None
-        self.author_link = None
-        self.story_link = None
-        self.chapters = []
-        self.last_updated = None
-
-#    def __init__(self, title, author, author_link, story_link):
-#        self.title = title
-#        self.author = author
-#        self.author_link = author_link
-#        self.story_link = story_link
-#        self.chapters = []
+#    def __init__(self):
 #        self.chapter_count = 0
+#        self.title = None
+#        self.author = None
+#        self.author_link = None
+#        self.story_link = None
+#        self.chapters = []
 #        self.last_updated = None
+
+    def __init__(self, title, story_link, author, author_link):
+        self.title = title
+        self.author = author
+        self.author_link = author_link
+        self.story_link = story_link
+        self.chapters = []
+        self.chapter_count = 0
+        self.last_updated = None
 
     def setTitle(self, title):
         self.title = title
