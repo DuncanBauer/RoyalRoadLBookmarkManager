@@ -114,33 +114,33 @@ def fetchall(connection):
 
         # Search soup for all links to other bookmark pages
         bookmark_number = RoyalRoadLSoupParser.grab_bookmark_number(soup)
-
+        print("Bookmarknum: ", bookmark_number)
         ticks = time.time()
+
+        stories = []
         # Begin traversing bookmark pages to read story titles, links, and authors
-        for i in range(1, bookmark_number, 1):
+        for k in range(1, bookmark_number + 1, 1):
             # Load new page to get story titles, links, and authors
-            p = s.get(url2 + suffix + str(i))
+            p = s.get(url2 + suffix + str(k))
+            print(url2 + suffix + str(k))
             # Create soup to parse html
             soup = BeautifulSoup(str(p.text), "lxml")
 
             # Search soup for all story titles, authors, and links
             r = RoyalRoadLSoupParser.grab_story_titles_authors_links(soup)
-
-            stories = [Story(r[i].text, r[i]['href'], r[i + 1].text, r[i + 1]['href']) for a in r]
-            #stories = []
-            #for i in range(0, len(r) - 1, 2):
-            #    newStory = Story()
-            #    newStory.setTitle(r[i].text)
-            #    newStory.setStoryLink(r[i]['href'])
-            #    newStory.setAuthor(r[i + 1].text)
-            #    newStory.setAuthorLink(r[i + 1]['href'])
+            for i in range(0, len(r) - 1, 2):
+                #newStory = Story()
+                #newStory.setTitle(r[i].text)
+                #newStory.setStoryLink(r[i]['href'])
+                #newStory.setAuthor(r[i + 1].text)
+                #newStory.setAuthorLink(r[i + 1]['href'])
 
                 # Add story to the list
-            #    stories.append(newStory)
+                #stories.append(newStory)
+                stories.append(Story(r[i], r[i]['href'], r[i+1], r[i+1]['href']))
 
         print("Time reading bookmark pages: ", time.time() - ticks)
         ticks = time.time()
-
         # Begin traversing bookmarked stories to read chapter names, links, and upload times
         for i in range(0, len(stories) - 1, 1):
             # Grab link to new story
@@ -155,7 +155,7 @@ def fetchall(connection):
             times = soup.find_all("time", format='agoshort')
             links = [a for a in soup.find_all("a", href=True) if a['href'].startswith(stories[i].getStoryLink()) \
                 and not a['href'].startswith(stories[i].getStoryLink() + '?reviews=')]
-
+            print(len(links))
             for a in links:
                 # Skips first valid link as its duplicated
                 if to_skip == 0:
@@ -295,17 +295,15 @@ switch = {
 if __name__ == "__main__":
     retry = True
     connection = None
-    while retry:
+    while True:
         try:
-            retry = False
             connection = db_connect()
+            break
         except Exception as e:
             command = input("Failed to establish database connection. Retry (y/n)? ")
-            print()
             if command is 'y':
-                retry = True
+                continue
             else:
-                retry = False
                 exit()
 
     print()

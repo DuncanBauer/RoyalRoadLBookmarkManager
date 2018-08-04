@@ -183,7 +183,6 @@ class RoyalRoadLSoupParser:
     def grab_bookmark_number(soup):
         # Search soup for all links to other bookmark pages
         bookmark_links = [a["href"] for a in soup("a", href=lambda x: x and x.startswith("/my/bookmarks?page="))]
-
         # Return number of highest page
         return int(bookmark_links[len(bookmark_links)-1].strip("/my/bookmarks?page="))
 
