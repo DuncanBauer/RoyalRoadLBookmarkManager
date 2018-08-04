@@ -18,6 +18,12 @@ from bs4 import BeautifulSoup
 
 MAIN_MENU_SIZE = 3
 
+def createStory(iterator):
+    print("Pre: ", iterator)
+    enumerate(iterator)
+    print("Post: ", iterator)
+    return iterator
+
 class MyHTMLParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         print("Encountered a start tag:", tag)
@@ -114,20 +120,21 @@ def fetchall(connection):
 
         # Search soup for all links to other bookmark pages
         bookmark_number = RoyalRoadLSoupParser.grab_bookmark_number(soup)
-        print("Bookmarknum: ", bookmark_number)
         ticks = time.time()
 
         stories = []
         # Begin traversing bookmark pages to read story titles, links, and authors
         for k in range(1, bookmark_number + 1, 1):
             # Load new page to get story titles, links, and authors
-            p = s.get(url2 + suffix + str(k))
-            print(url2 + suffix + str(k))
+            p = s.get(url2 + suffix + str(k))\
             # Create soup to parse html
             soup = BeautifulSoup(str(p.text), "lxml")
 
             # Search soup for all story titles, authors, and links
             r = RoyalRoadLSoupParser.grab_story_titles_authors_links(soup)
+            #stories1 = [createStory(a) for a in r]
+            #print(stories1)
+            #exit()
             for i in range(0, len(r) - 1, 2):
                 #newStory = Story()
                 #newStory.setTitle(r[i].text)
@@ -155,7 +162,6 @@ def fetchall(connection):
             times = soup.find_all("time", format='agoshort')
             links = [a for a in soup.find_all("a", href=True) if a['href'].startswith(stories[i].getStoryLink()) \
                 and not a['href'].startswith(stories[i].getStoryLink() + '?reviews=')]
-            print(len(links))
             for a in links:
                 # Skips first valid link as its duplicated
                 if to_skip == 0:
@@ -172,7 +178,6 @@ def fetchall(connection):
 
         print("Time reading story chapters: ", time.time() - ticks)
         ticks = time.time()
-        exit()
 
         try:
             # STORE DATA IN MYSQL DB
@@ -193,6 +198,10 @@ def fetchall(connection):
         except Exception as e:
             print(e)
             exit()
+
+        print("Time writing to DB: ", time.time() - ticks)
+        ticks = time.time()
+
         return 1
 
 
