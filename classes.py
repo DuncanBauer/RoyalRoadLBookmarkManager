@@ -163,17 +163,39 @@ class BookmarkManager(DB):
         self.increment_chapter_count()
         return cursor
 
+# Ive run into an existential dilema
+# Do i go for the less accurate string to int conversion
+# Or do i load every single chapter to get its post times, id really rather not
     def get_last_updated(self):
         cursor = self.query(("""SELECT lastUpdated FROM bookmarks""", ()))
 
         temp = cursor.fetchall()
-        highest = 0
-
+        newest = 0
+        dates = {
+            "second": 1,
+            "minute": 60,
+            "hour": 3600,
+            "day": 3600*24,
+            "week": 3600*24*7,
+            "month": 3600*24*30, # Just using 30 for num of days in month, will change if needed
+            "year": 3600*24*365,
+        }
         for i in temp:
             if i[0] == 'None':
                 continue
-            elif int(i[0]) > highest:
-                highest = int(i[0])
+            else:
+
+                tup = i[0].split(' ')
+                if(tup[1].endswith('s')):
+                    tup[1] = tup[1][:-1]
+                print("TUP: ", tup)
+                print(tup[1])
+                print(dates[tup[1]])
+                tup[2] = tup[0]*dates[tup[1]]
+
+
+                #if int(i[0]) > highest:
+                #highest = int(i[0])
 
         return highest
 

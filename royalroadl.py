@@ -71,7 +71,7 @@ def empty_db(connection):
                  `fictionLink` varchar(199) NOT NULL,
                  `chapterTitle` varchar(199) NOT NULL,
                  `chapterLink` varchar(199) NOT NULL,
-                 `postTime` varchar(20) NOT NULL,
+                 `postTime` varchar(45) NOT NULL,
                  PRIMARY KEY (`chapterLink`)
                  )ENGINE=InnoDB DEFAULT CHARSET=utf8""", ()))
         c = connection.query(("""SELECT count(*) as tot FROM bookmarks""", ()))
@@ -110,7 +110,7 @@ def fetchall(connection):
             if p.url.endswith("loginsuccess"):
                 retry = False
             else:
-                print("Invalid login. Please try again")
+                print("Unsuccessful login. Please try again")
 
         print("Parsing data...")
         p = s.get(url2 + '/my/bookmarks')
@@ -290,14 +290,15 @@ def check_story(soup, parser, last_check, found):
         return (1, 0)
 
 
-def nothing(connection):
-    print("Hello")
+def check_last_updated(connection):
+    print("calling")
+    print(connection.get_last_updated())
 
 
 switch = {
     '1': fetchall,
     '2': fetchlatest,
-    '3': nothing
+    '3': check_last_updated
 }
 
 
@@ -321,7 +322,7 @@ if __name__ == "__main__":
     print("* Commands:")
     print("* 1 - Reinitialize database")
     print("* 2 - Update database")
-    print("* 3 - Nothing")
+    print("* 3 - Check Last Updated")
     print("*****************************************************************")
 
     retry = True
@@ -336,13 +337,13 @@ if __name__ == "__main__":
             func(connection)
 
     #is_empty = c.fetchone()
-    other = connection.query(("""SELECT lastUpdated FROM bookmarks""", ()))
-    thisone = other.fetchall()
-    for a in thisone:
-        print(a)
+    #other = connection.query(("""SELECT lastUpdated FROM bookmarks""", ()))
+    #thisone = other.fetchall()
+    #for a in thisone:
+    #    print(a)
 
-    last_check = connection.get_last_updated()
-    print(last_check)
+    #last_check = connection.get_last_updated()
+    #print(last_check)
     #last_check = grabData.fetchlatest(connection, payload, url, url2, suffix, last_check)
 
     connection.close()
