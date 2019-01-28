@@ -9,7 +9,7 @@ This project is to track and manage bookmarks from the site [RoyalRoadL](https:/
 
 **CURRENT FEATURES**: \
   -Integrated with mysql database \
-  -Log into royalroadl -> BUG(crashes on failed login) \
+  -Log into royalroadl \
   -Read and parse all stories/chapters the logged in user has bookmarked 
   
 **PLANNED FEATURES**: \
@@ -23,3 +23,4 @@ This project is to track and manage bookmarks from the site [RoyalRoadL](https:/
 **RECENT UPDATES**: \
   -RoyalRoadL has recently reorganized their website directory, and links/paths had to be updated. (7/21/18) \
   -Project has just been moved from an old repository and has lost its commits. (7/21/18)
+  -RoyalRoadL has changed their domain name to RoyalRoad
