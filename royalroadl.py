@@ -1,20 +1,21 @@
 # Usage:
-#  > royalroadl.py [db ip] [db username] [db password] [royalroadl username] [royalroadl password]
+#  > royalroad.py [db ip] [db username] [db password] [royalroad username] [royalroad password]
 #         0          1           2            3                 4                      5
-#  > royalroadl.py [db ip] [db username] [royalroadl username] [royalroadl password]
+#  > royalroad.py [db ip] [db username] [royalroad username] [royalroad password]
 #         0          1           2                 4                      5
 
 
 import sys
-from classes import BookmarkManager
-import requests, lxml
-from html.parser import HTMLParser
 import time
 import math
+import pyrebase
+import requests, lxml
+from bs4 import BeautifulSoup
+from html.parser import HTMLParser
 from classes import Story
 from classes import Chapter
-from classes import RoyalRoadLSoupParser
-from bs4 import BeautifulSoup
+from classes import RoyalRoadSoupParser
+from classes import BookmarkManager
 
 MAIN_MENU_SIZE = 3
 
@@ -34,10 +35,17 @@ class MyHTMLParser(HTMLParser):
     def handle_data(self, data):
         print("Encountered some data  :", data)
 
-url = 'https://www.royalroadl.com/account/login'
-url2 = 'https://royalroadl.com'
+url = 'https://www.royalroad.com/account/login'
+url2 = 'https://royalroad.com'
 suffix = '/my/bookmarks?page='
 
+headers = {'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+           'accept-encoding': 'gzip',
+           'accept-language': 'en-US,en;q=0.9',
+           'cache-control': 'no-cache',
+           'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36',
+           'Content-Type': 'application/x-www-form-urlencoded',
+           'Connection': 'keep-alive'}
 
 def db_connect():
     connection = BookmarkManager()
@@ -47,7 +55,7 @@ def db_connect():
     ticks = time.time()
     print()
     print("Connecting to database...")
-    connection.connect(db_ip, username, password, 'royalroadl', 'utf8')
+    connection.connect(db_ip, username, password, 'royalroad', 'utf8')
     print("Connection to database established!")
 
     print("Time spend connecting to db: ", time.time() - ticks)
@@ -61,8 +69,8 @@ def empty_db(connection):
         connection.query(("""CREATE TABLE IF NOT EXISTS `bookmarks` (
                  `title` varchar(200) NOT NULL,
                  `author` varchar(199) DEFAULT NULL,
-                 `authorLink` varchar(199) DEFAULT NULL,
                  `link` varchar(199) NOT NULL,
+                 `authorLink` varchar(199) DEFAULT NULL,
                  `lastUpdated` varchar(45) NOT NULL,
                  PRIMARY KEY (`link`),
                  UNIQUE KEY `link_UNIQUE` (`link`)
@@ -82,16 +90,33 @@ def empty_db(connection):
         return 0
     return 1
 
+def rec_storypush(i, links):
+    # links[i] is for the story
+    # links[i+1] is for the author
+    if i >= len(links) - 1:
+        return []
+    else:
+        return [Story(links[i].text, links[i]['href'], links[i+1].text, links[i+1]['href'])] + rec_storypush(i + 2, links)
+
+def rec_bookmarkget(i, bookmark_number, s):
+    stories = []
+    if i <= bookmark_number:
+        # Load new page to get story titles, links, and authors
+        p = s.get(url2 + suffix + str(i))
+        # Create soup to parse html
+        soup = BeautifulSoup(str(p.text), "lxml")
+
+        # Search soup for all story titles, authors, and links
+        links = RoyalRoadSoupParser.grab_story_titles_authors_links(soup)
+
+        stories = rec_storypush(0, links)
+        return stories + rec_bookmarkget(i+1, bookmark_number, s)
+    else:
+        return []
+
 def fetchall(connection):
     retry = True
     sesh = None
-    headers = {'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-               'accept-encoding': 'gzip',
-               'accept-language': 'en-US,en;q=0.9',
-               'cache-control': 'no-cache',
-               'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36',
-               'Content-Type': 'application/x-www-form-urlencoded',
-               'Connection': 'keep-alive'}
 
     if(not empty_db(connection)):
         return 0
@@ -100,11 +125,11 @@ def fetchall(connection):
     with session as s:
         retry = True
         while retry:
-            username = input("Enter RoyalRoadL username: ")
-            password = input("Enter RoyalRoadL password: ")
-            payload = {'username': username,
-                       'password': password}
-            print("Attempting to log in to RoyalRoadL...")
+            username = input("Enter RoyalRoad username: ")
+            password = input("Enter RoyalRoad password: ")
+            payload = {'Username': username,
+                       'Password': password}
+            print("Attempting to log in to RoyalRoad...")
             print()
             p = s.post(url, data=payload, headers=headers)
             if p.url.endswith("loginsuccess"):
@@ -119,37 +144,16 @@ def fetchall(connection):
         soup = BeautifulSoup(str(p.text), "lxml")
 
         # Search soup for all links to other bookmark pages
-        bookmark_number = RoyalRoadLSoupParser.grab_bookmark_number(soup)
+        bookmark_number = RoyalRoadSoupParser.grab_bookmark_number(soup)
         ticks = time.time()
 
-        stories = []
-        # Begin traversing bookmark pages to read story titles, links, and authors
-        for k in range(1, bookmark_number + 1, 1):
-            # Load new page to get story titles, links, and authors
-            p = s.get(url2 + suffix + str(k))\
-            # Create soup to parse html
-            soup = BeautifulSoup(str(p.text), "lxml")
-
-            # Search soup for all story titles, authors, and links
-            r = RoyalRoadLSoupParser.grab_story_titles_authors_links(soup)
-            #stories1 = [createStory(a) for a in r]
-            #print(stories1)
-            #exit()
-            for i in range(0, len(r) - 1, 2):
-                #newStory = Story()
-                #newStory.setTitle(r[i].text)
-                #newStory.setStoryLink(r[i]['href'])
-                #newStory.setAuthor(r[i + 1].text)
-                #newStory.setAuthorLink(r[i + 1]['href'])
-
-                # Add story to the list
-                #stories.append(newStory)
-                stories.append(Story(r[i], r[i]['href'], r[i+1], r[i+1]['href']))
-
+        stories = rec_bookmarkget(1, bookmark_number + 1, s)
         print("Time reading bookmark pages: ", time.time() - ticks)
         ticks = time.time()
+
+
         # Begin traversing bookmarked stories to read chapter names, links, and upload times
-        for i in range(0, len(stories) - 1, 1):
+        for i in range(0, len(stories), 1):
             # Grab link to new story
             story_link = stories[i].getStoryLink()
             # Load new page to get chapter titles, links, and upload times
@@ -157,44 +161,49 @@ def fetchall(connection):
             # Create soup to parse html
             soup = BeautifulSoup(str(p.text), 'lxml')
 
-            counter = 0
-            to_skip = 0
             times = soup.find_all("time", format='agoshort')
             links = [a for a in soup.find_all("a", href=True) if a['href'].startswith(stories[i].getStoryLink()) \
                 and not a['href'].startswith(stories[i].getStoryLink() + '?reviews=')]
-            for a in links:
-                # Skips first valid link as its duplicated
-                if to_skip == 0:
-                    to_skip = 1
-                elif to_skip == 1:
-                    # Create new chapter
-                    newChapter = Chapter()
-                    newChapter.setStoryLink(story_link)
-                    newChapter.setChapterLink(a['href'])
-                    newChapter.setChapterName((a.get_text()).strip())
-                    newChapter.setChapterTime(times[counter].text)
-                    stories[i].addChapter(newChapter)
-                    counter += 1
+
+            for a in range(1, len(links), 1):
+                # Create new chapter
+                newChapter = Chapter()
+                newChapter.setStoryLink(story_link)
+                newChapter.setChapterLink(links[a]['href'])
+                newChapter.setChapterName((links[a].get_text()).strip())
+                newChapter.setChapterTime(times[a - 1].text)
+                stories[i].addChapter(newChapter)
 
         print("Time reading story chapters: ", time.time() - ticks)
         ticks = time.time()
 
         try:
+#            rec_store_story(connection, 0, stories)
             # STORE DATA IN MYSQL DB
+            j = 0
             for i in stories:
-                connection.store_story(i.getTitle(),
-                                       i.getAuthor(),
-                                       i.getStoryLink(),
+                #print(j, ": ", i.getTitle())
+                connection.store_story(str(i.getTitle()),
+                                       str(i.getAuthor()),
+                                       str(i.getStoryLink()),
+                                       str(i.getAuthorLink()),
                                        str(i.getLastUpdated()))
                 chaps = i.getChapters()
                 for a in range(0, i.getChapterCount(), 1):
                     chapt = chaps[a]
-                    connection.store_chapter(i.getStoryLink(),
-                                             chapt.getChapterName(),
-                                             chapt.getChapterLink(),
+                    #print("    ", a, ": ", chapt.getChapterName())
+                    connection.store_chapter(str(i.getStoryLink()),
+                                             str(chapt.getChapterName()),
+                                             str(chapt.getChapterLink()),
                                              str(chapt.getChapterTime()))
 
-            s.__str__()
+        #    s.__str__()
+                j = j + 1
+            cur = connection.query("""SELECT * FROM chapters WHERE fictionLink = '//fiction//568/reincarnation/-first/-monster'""")
+            c = cur.fetchall()
+            for q in c:
+                print(q)
+
         except Exception as e:
             print(e)
             exit()
@@ -204,15 +213,45 @@ def fetchall(connection):
 
         return 1
 
+def rec_store_story(connection, i, stories):
+    try:
+        if i < len(stories):
+            print(i, ": ", stories[i].getTitle())
+            connection.store_story(stories[i].getTitle(),
+                                   stories[i].getAuthor(),
+                                   stories[i].getStoryLink(),
+                                   stories[i].getAuthorLink(),
+                                   str(stories[i].getLastUpdated()))
+            chaps = stories[i].getChapters()
+
+            rec_store_chap(connection, i, 0, chaps, stories)
+            rec_store_story(connection, i + 1, stories)
+    except (exc):
+        print(exc)
+
+def rec_store_chap(connection, i, a, chaps, stories):
+    #if not connection.is_connected():
+    #    connection.reconnect()
+    try:
+        if a < len(chaps):
+            chapt = chaps[a]
+            print("    ", a, ": ", chapt.getChapterName())
+            connection.store_chapter(stories[i].getStoryLink(),
+                                     chapt.getChapterName(),
+                                     chapt.getChapterLink(),
+                                     str(chapt.getChapterTime()))
+            rec_store_chap(connection, i, a + 1, chaps, stories)
+    except (exc):
+        print(exc)
 
 def fetchlatest(connection, payload, url, url2, suffix, last_check):
 
     print("Entering...")
 
-    parser = RoyalRoadLSoupParser()
+    parser = RoyalRoadSoupParser()
     session = requests.Session()
     with session as s:
-        # Log in to royalroadl.com and go to bookmarks page
+        # Log in to royalroad.com and go to bookmarks page
         s.post(url, data=payload)
 
         p = s.get(url2 + '/my/bookmarks')
@@ -318,7 +357,7 @@ if __name__ == "__main__":
 
     print()
     print("*****************************************************************")
-    print("* Welcome to the RoyalRoadL Bookmark Cataloger\n*")
+    print("* Welcome to the RoyalRoad Bookmark Cataloger\n*")
     print("* Commands:")
     print("* 1 - Reinitialize database")
     print("* 2 - Update database")

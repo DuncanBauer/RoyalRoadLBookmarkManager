@@ -25,11 +25,13 @@ class DB:
         try:
             cursor = self.conn.cursor()
             cursor.execute(sql[0],sql[1])
+            cursor.close()
             self.conn.commit()
         except (AttributeError, MySQLdb.OperationalError):
             self.reconnect()
             cursor = self.conn.cursor()
             cursor.execute(sql[0],sql[1])
+            cursor.close()
             self.conn.commit()
         return cursor
 

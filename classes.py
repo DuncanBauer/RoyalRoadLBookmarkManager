@@ -121,10 +121,10 @@ class Story:
         return -1
 
     def print(self):
-        print("Title: " + self.getTitle())
-        print("Author: " + self.getAuthor())
-        print("Link: " + self.getStoryLink())
-        print("Author Link: " + self.getAuthorLink())
+        print("Title: " + str(self.getTitle()))
+        print("Author: " + str(self.getAuthor()))
+        print("Link: " + str(self.getStoryLink()))
+        print("Author Link: " + str(self.getAuthorLink()))
         print("Last Updated: " + str(self.getLastUpdated()))
         print("Chapters:")
         for a in self.chapters:
@@ -145,11 +145,12 @@ class BookmarkManager(DB):
     def increment_chapter_count(self):
         self.chapter_count += 1
 
-    def store_story(self, title, author, link, last_updated):
-        cursor = self.query(("""INSERT INTO bookmarks(title, author, link, lastUpdated) VALUES (%s, %s, %s, %s)""",
+    def store_story(self, title, author, link, author_link, last_updated):
+        cursor = self.query(("""INSERT INTO bookmarks(title, author, link, authorLink, lastUpdated) VALUES (%s, %s, %s, %s, %s)""",
                          (title.encode('utf8'),
                           author.encode('utf8'),
                           link.encode('utf8'),
+                          author_link.encode('utf8'),
                           last_updated.encode('utf8'))))
         self.increment_story_count()
         return cursor
@@ -200,7 +201,7 @@ class BookmarkManager(DB):
         return highest
 
 
-class RoyalRoadLSoupParser:
+class RoyalRoadSoupParser:
 
     def grab_bookmark_number(soup):
         # Search soup for all links to other bookmark pages
