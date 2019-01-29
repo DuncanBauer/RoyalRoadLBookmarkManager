@@ -1,10 +1,3 @@
-# Usage:
-#  > royalroad.py [db ip] [db username] [db password] [royalroad username] [royalroad password]
-#         0          1           2            3                 4                      5
-#  > royalroad.py [db ip] [db username] [royalroad username] [royalroad password]
-#         0          1           2                 4                      5
-
-
 import sys
 import re
 import time
@@ -18,6 +11,8 @@ from bs4 import BeautifulSoup
 from classes import Story
 from classes import Chapter
 from classes import RoyalRoadSoupParser
+from login import Ui_Form
+from PyQt5.QtWidgets import QApplication
 
 MAIN_MENU_SIZE = 3
 firebase = None
@@ -28,7 +23,7 @@ with open('config.json') as f:
 user = firebase.auth().sign_in_with_email_and_password(config['email'], config['password'])
 startTime = time.time()
 db = firebase.database()
-db.child("stories").remove()
+#db.child("stories").remove()
 
 stories = []
 
@@ -93,7 +88,7 @@ def chapter_get(i, s):
         stories[i].addChapter(newChapter)
     print(threading.current_thread().getName(), 'Exiting')
 
-def fetchall():
+def fetchall(username, password):
     retry = True
     sesh = None
 
@@ -102,19 +97,11 @@ def fetchall():
 
     session = requests.Session()
     with session as s:
-        retry = True
-        while retry:
-            username = input("Enter RoyalRoad username: ")
-            password = getpass.getpass("Enter RoyalRoad password: ")
-            payload = {'Username': username,
-                       'Password': password}
-            print("Attempting to log in to RoyalRoad...")
-            print()
-            p = s.post(url, data=payload, headers=headers)
-            if p.url.endswith("loginsuccess"):
-                retry = False
-            else:
-                print("Unsuccessful login. Please try again")
+        #retry = True
+        #while retry:
+        payload = {'Username': username,
+                   'Password': password}
+        p = s.post(url, data=payload, headers=headers)
 
         print("Parsing data...")
         p = s.get(url2 + '/my/bookmarks')
@@ -172,10 +159,10 @@ def rec_store_story(i):
         titi = pattern.sub('', data['title'])
         key = db.child("stories").child(titi).set(data)
 
-        rec_store_chap(db, i, 0, titi)
+        rec_store_chap(i, 0, titi)
     print(threading.current_thread().getName(), 'Exiting')
 
-def rec_store_chap(connection, i, a, titi):
+def rec_store_chap(i, a, titi):
     global stories
     if a < stories[i].getChapterCount():
         pattern = re.compile('[\W_]+')
@@ -189,7 +176,7 @@ def rec_store_chap(connection, i, a, titi):
         tit = pattern.sub('', data['title'])
         results = db.child("stories").child(titi) \
                     .child("chapters").child(tit).set(data)
-        rec_store_chap(db, i, a + 1, titi)
+        rec_store_chap(i, a + 1, titi)
 
 def fetchlatest(payload, url, url2, suffix, last_check):
 
@@ -284,7 +271,9 @@ switch = {
 
 
 if __name__ == "__main__":
-    connection = None
+    app = QApplication(sys.argv)
+    ex = Ui_Form(db)
+    sys.exit(app.exec_())
 
     print()
     print("*****************************************************************")
@@ -295,13 +284,13 @@ if __name__ == "__main__":
     print("* 3 - Check Last Updated")
     print("*****************************************************************")
 
-    retry = True
-    while retry:
-        command = input("> ")
-        if int(command) <= 0 or int(command) > MAIN_MENU_SIZE:
-            command = input("Invalid input. Retry (y/n)? ")
-        else:
-            retry = False
-            func = switch.get(str(command))
-            print()
-            func()
+    #retry = True
+    #while retry:
+    #    command = input("> ")
+    #    if int(command) <= 0 or int(command) > MAIN_MENU_SIZE:
+    #        command = input("Invalid input. Retry (y/n)? ")
+    #    else:
+    #        retry = False
+    #        func = switch.get(str(command))
+    #        print()
+    #        func()
