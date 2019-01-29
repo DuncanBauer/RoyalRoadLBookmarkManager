@@ -6,10 +6,14 @@
 
 
 import sys
+import re
 import time
 import math
 import pyrebase
 import requests, lxml
+import getpass
+import pyrebase
+import json
 from bs4 import BeautifulSoup
 from html.parser import HTMLParser
 from classes import Story
@@ -18,6 +22,22 @@ from classes import RoyalRoadSoupParser
 from classes import BookmarkManager
 
 MAIN_MENU_SIZE = 3
+firebase = None
+with open('config.json') as f:
+    config = json.load(f)
+    firebase = pyrebase.initialize_app(config)
+
+user = firebase.auth().sign_in_with_email_and_password(config['email'], config['password'])
+startTime = time.time()
+db = firebase.database()
+
+
+
+db.child("stories").remove()
+
+
+
+
 
 def createStory(iterator):
     print("Pre: ", iterator)
@@ -51,7 +71,7 @@ def db_connect():
     connection = BookmarkManager()
     db_ip = input("Enter database ip: ")
     username = input("Enter database username: ")
-    password = input("Enter database password: ")
+    password = getpass.getpass("Enter database password: ")
     ticks = time.time()
     print()
     print("Connecting to database...")
@@ -126,7 +146,7 @@ def fetchall(connection):
         retry = True
         while retry:
             username = input("Enter RoyalRoad username: ")
-            password = input("Enter RoyalRoad password: ")
+            password = getpass.getpass("Enter RoyalRoad password: ")
             payload = {'Username': username,
                        'Password': password}
             print("Attempting to log in to RoyalRoad...")
@@ -177,36 +197,65 @@ def fetchall(connection):
         print("Time reading story chapters: ", time.time() - ticks)
         ticks = time.time()
 
-        try:
+#        try:
 #            rec_store_story(connection, 0, stories)
             # STORE DATA IN MYSQL DB
-            j = 0
-            for i in stories:
-                #print(j, ": ", i.getTitle())
-                connection.store_story(str(i.getTitle()),
-                                       str(i.getAuthor()),
-                                       str(i.getStoryLink()),
-                                       str(i.getAuthorLink()),
-                                       str(i.getLastUpdated()))
-                chaps = i.getChapters()
-                for a in range(0, i.getChapterCount(), 1):
-                    chapt = chaps[a]
+    #    j = 0
+
+        pattern = re.compile('[\W_]+')
+        for i in stories:
+            data = {
+                'title': i.getTitle(),
+                'author': i.getAuthor(),
+                'storyLink': i.getStoryLink(),
+                'authorLink': i.getAuthorLink(),
+                'lastUpdated': str(i.getLastUpdated())
+            }
+            titi = pattern.sub('', data['title'])
+            #data['title'] = tit
+            key = db.child("stories").child(titi).set(data)
+
+
+            #print(j, ": ", i.getTitle())
+            #connection.store_story(str(i.getTitle()),
+            #                       str(i.getAuthor()),
+            #                       str(i.getStoryLink()),
+            #                       str(i.getAuthorLink()),
+            #                       str(i.getLastUpdated()))
+            chaps = i.getChapters()
+            for a in range(0, i.getChapterCount(), 1):
+                chapt = chaps[a]
+                data = {
+                    'title': chapt.getChapterName(),
+                    'chaptLink': chapt.getChapterLink(),
+                    'storyLink': i.getStoryLink(),
+                    'timePublished': chapt.getChapterTime()
+                }
+                tit = pattern.sub('', data['title'])
+                #data['title'] = tit
+                results = db.child("stories").child(titi) \
+                            .child("chapters").child(tit).set(data)
+
+
+
                     #print("    ", a, ": ", chapt.getChapterName())
-                    connection.store_chapter(str(i.getStoryLink()),
-                                             str(chapt.getChapterName()),
-                                             str(chapt.getChapterLink()),
-                                             str(chapt.getChapterTime()))
+                #    connection.store_chapter(str(i.getStoryLink()),
+                #                             str(chapt.getChapterName()),
+                #                             str(chapt.getChapterLink()),
+                #                             str(chapt.getChapterTime()))
 
         #    s.__str__()
-                j = j + 1
-            cur = connection.query("""SELECT * FROM chapters WHERE fictionLink = '//fiction//568/reincarnation/-first/-monster'""")
-            c = cur.fetchall()
-            for q in c:
-                print(q)
+#                j = j + 1
+            #cur = connection.query(("""SELECT * FROM chapters WHERE fictionLink = %s""", ["\/fiction\/568\/reincarnation\-first\-monster"]))
+            #print(cur)
+            #c = cur.fetchall()
+            #print(c)
+            #for q in c:
+            #    print(q)
 
-        except Exception as e:
-            print(e)
-            exit()
+#        except Exception as e:
+#            print(e)
+#            exit()
 
         print("Time writing to DB: ", time.time() - ticks)
         ticks = time.time()
@@ -264,7 +313,6 @@ def fetchlatest(connection, payload, url, url2, suffix, last_check):
         search_bookmarks(s, url2, suffix, bookmark_numbers, 0, last_check, parser, (0, 0))
 
         return math.floor(time.time())
-
 
 def search_bookmarks(s, url, suffix, bookmark_numbers, curr_bookmark_number, last_check, parser, result):
     print(url + suffix + str(curr_bookmark_number + 1))
