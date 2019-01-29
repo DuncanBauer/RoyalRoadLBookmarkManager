@@ -1,5 +1,3 @@
 .idea/*
 __pycache__/*
-sms.py
-*.png
 config.json

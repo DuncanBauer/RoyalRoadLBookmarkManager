@@ -1,6 +1,3 @@
-from MySQLConnectionManager import DB
-
-
 class Chapter:
 
     def __init__(self):
@@ -46,15 +43,6 @@ class Chapter:
 
 
 class Story:
-
-#    def __init__(self):
-#        self.chapter_count = 0
-#        self.title = None
-#        self.author = None
-#        self.author_link = None
-#        self.story_link = None
-#        self.chapters = []
-#        self.last_updated = None
 
     def __init__(self, title, story_link, author, author_link):
         self.title = title
@@ -130,75 +118,6 @@ class Story:
         for a in self.chapters:
             a.print()
         print()
-
-
-class BookmarkManager(DB):
-
-    def __init__(self):
-        super().__init__()
-        self.story_count = 0
-        self.chapter_count = 0
-
-    def increment_story_count(self):
-        self.story_count += 1
-
-    def increment_chapter_count(self):
-        self.chapter_count += 1
-
-    def store_story(self, title, author, link, author_link, last_updated):
-        cursor = self.query(("""INSERT INTO bookmarks(title, author, link, authorLink, lastUpdated) VALUES (%s, %s, %s, %s, %s)""",
-                         (title.encode('utf8'),
-                          author.encode('utf8'),
-                          link.encode('utf8'),
-                          author_link.encode('utf8'),
-                          last_updated.encode('utf8'))))
-        self.increment_story_count()
-        return cursor
-
-    def store_chapter(self, story_link, chapter_name, chapter_link, chapter_time):
-        cursor = self.query(("""INSERT INTO chapters(fictionLink, chapterTitle, chapterLink, postTime) VALUES (%s, %s, %s, %s)""",
-                         (story_link.encode('utf8'),
-                          chapter_name.encode('utf8'),
-                          chapter_link.encode('utf8'),
-                          chapter_time.encode('utf8'))))
-        self.increment_chapter_count()
-        return cursor
-
-# Ive run into an existential dilema
-# Do i go for the less accurate string to int conversion
-# Or do i load every single chapter to get its post times, id really rather not
-    def get_last_updated(self):
-        cursor = self.query(("""SELECT lastUpdated FROM bookmarks""", ()))
-
-        temp = cursor.fetchall()
-        newest = 0
-        dates = {
-            "second": 1,
-            "minute": 60,
-            "hour": 3600,
-            "day": 3600*24,
-            "week": 3600*24*7,
-            "month": 3600*24*30, # Just using 30 for num of days in month, will change if needed
-            "year": 3600*24*365,
-        }
-        for i in temp:
-            if i[0] == 'None':
-                continue
-            else:
-
-                tup = i[0].split(' ')
-                if(tup[1].endswith('s')):
-                    tup[1] = tup[1][:-1]
-                print("TUP: ", tup)
-                print(tup[1])
-                print(dates[tup[1]])
-                tup[2] = tup[0]*dates[tup[1]]
-
-
-                #if int(i[0]) > highest:
-                #highest = int(i[0])
-
-        return highest
 
 
 class RoyalRoadSoupParser:
